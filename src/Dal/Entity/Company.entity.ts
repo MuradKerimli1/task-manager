@@ -2,7 +2,6 @@ import {
   BaseEntity,
   Column,
   Entity,
-  JoinColumn,
   OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
@@ -23,8 +22,7 @@ export class Company extends BaseEntity {
   @Column()
   address: string;
 
-  @OneToOne(() => User, { nullable: true, onDelete: "CASCADE" })
-  @JoinColumn()
+  @OneToOne(() => User, (user) => user.createdCompany)
   creator: User;
 
   @OneToMany(() => User, (user) => user.company, { cascade: true })

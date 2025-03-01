@@ -30,7 +30,12 @@ const companyCreate = async (
 
     // exist company and exist User
 
-    const existUser = await User.findOne({ where: { id: id } });
+    const existUser = await User.findOne({
+      where: { id: id },
+      relations: {
+        company: true,
+      },
+    });
     if (!existUser) {
       return next(new AppError("User not found", 404));
     }

@@ -6,6 +6,7 @@ import {
   ManyToMany,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { Company } from "./Company.entity";
@@ -35,6 +36,13 @@ export class User extends BaseEntity {
   @ManyToOne(() => Company, (c) => c.users)
   @JoinColumn()
   company: Company;
+
+  @OneToOne(() => Company, (company) => company.creator, {
+    nullable: true,
+    onDelete: "CASCADE",
+  })
+  @JoinColumn()
+  createdCompany: Company;
 
   @Column({ type: "enum", enum: UserStatus, default: UserStatus.ACTIVE })
   status: string;
