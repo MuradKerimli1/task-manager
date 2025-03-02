@@ -17,7 +17,13 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
       return next(new AppError("Invalid token", 401));
     }
 
-    const existUser = await User.findOne({ where: { id: +decode.sub! } });
+    const existUser = await User.findOne({
+      where: { id: +decode.sub! },
+      relations: {
+        company: true,
+        createdCompany: true,
+      },
+    });
 
     if (!existUser) {
       return next(new AppError("User not found on auth", 404));

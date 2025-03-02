@@ -11,3 +11,4 @@ Taskrouter.delete("/deleteTask", auth, controller.deleteTask);
 Taskrouter.put("/updateTask", auth, controller.updateTask);
 Taskrouter.get("/allopenTask", auth, controller.allOpenTasks);
 Taskrouter.get("/allclosedTask", auth, controller.allclosedTasks);
+Taskrouter.post("/filter", auth, controller.filterTask);

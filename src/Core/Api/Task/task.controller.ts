@@ -4,9 +4,9 @@ import { validate } from "class-validator";
 import AppError from "../../Errors/appError";
 import { formatErrors } from "../../Errors/dtoError";
 import { User } from "../../../Dal/Entity/User.entity";
-import { In } from "typeorm";
+import { Between, FindOptionsWhere, ILike, In } from "typeorm";
 import { Task } from "../../../Dal/Entity/Task.entity";
-import { TaskStatus } from "../../../Dal/Enum/enum";
+import { TaskPriority, TaskStatus } from "../../../Dal/Enum/enum";
 
 const createTask = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -14,6 +14,8 @@ const createTask = async (req: Request, res: Response, next: NextFunction) => {
       req.body;
 
     const user = req.user;
+    console.log(user);
+
     if (!user) {
       return next(new AppError("User not found", 404));
     }
@@ -64,7 +66,7 @@ const createTask = async (req: Request, res: Response, next: NextFunction) => {
     newTask.deadline = deadlineDate;
     newTask.createdUser = user;
     newTask.assignedUsers = assignUsers;
-    newTask.company = user.company;
+    newTask.company = user.company || user.createdCompany;
 
     await newTask.save();
 
@@ -258,6 +260,96 @@ const allclosedTasks = async (
   }
 };
 
+const filterTask = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const {
+      title,
+      priority,
+      deadlineBefore,
+      deadlineAfter,
+      hourBefore,
+      hourAfter,
+      status,
+      assignedUsers,
+    } = req.body;
+
+    let filters: FindOptionsWhere<Task> = {};
+
+    if (title) filters.title = ILike(`%${title}%`);
+
+    if (priority) {
+      if (!Object.values(TaskPriority).includes(priority as TaskPriority)) {
+        return next(new AppError("Invalid priority value", 400));
+      }
+      filters.priority = priority as TaskPriority;
+    }
+
+    if (status) {
+      if (!Object.values(TaskStatus).includes(status as TaskStatus)) {
+        return next(new AppError("Invalid status value", 400));
+      }
+      filters.status = status as TaskStatus;
+    }
+
+    if (deadlineBefore || deadlineAfter) {
+      const startDate = deadlineAfter
+        ? new Date(deadlineAfter as string)
+        : new Date("1900-01-01");
+      const endDate = deadlineBefore
+        ? new Date(deadlineBefore as string)
+        : new Date("2100-01-01");
+
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        return next(new AppError("Invalid deadline date format", 400));
+      }
+
+      filters.deadline = Between(startDate, endDate);
+    }
+
+    if (hourBefore || hourAfter) {
+      const startHour = hourAfter
+        ? new Date((hourAfter as string) + "Z")
+        : new Date("1900-01-01T00:00:00Z");
+
+      const endHour = hourBefore
+        ? new Date((hourBefore as string) + "Z")
+        : new Date("2100-01-01T23:59:59Z");
+
+      if (isNaN(startHour.getTime()) || isNaN(endHour.getTime())) {
+        return next(
+          new AppError("Invalid hour format. Use YYYY-MM-DDTHH:mm:ss", 400)
+        );
+      }
+
+      filters.hour = Between(startHour, endHour);
+    }
+
+    if (assignedUsers) {
+      const assignedUserIds = Array.isArray(assignedUsers)
+        ? assignedUsers.map((id) => Number(id))
+        : [Number(assignedUsers)];
+
+      if (assignedUserIds.some(isNaN)) {
+        return next(new AppError("Invalid assignedUsers format", 400));
+      }
+
+      filters.assignedUsers = { id: In(assignedUserIds) };
+    }
+
+    const tasks = await Task.find({
+      where: filters,
+      relations: ["createdUser", "assignedUsers", "company"],
+    });
+
+    if (!tasks.length) return next(new AppError("No tasks found", 404));
+
+    res.status(200).json({ success: true, tasks });
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
 const taskController = () => {
   return {
     createTask,
@@ -267,6 +359,7 @@ const taskController = () => {
     updateTask,
     allOpenTasks,
     allclosedTasks,
+    filterTask,
   };
 };
 

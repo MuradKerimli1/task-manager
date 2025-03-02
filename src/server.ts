@@ -3,12 +3,18 @@ import express, { NextFunction, Request, Response } from "express";
 import { AppDataSource } from "./Dal/Config/db";
 import cors from "cors";
 import { mainRouter } from "./Core/Router";
+import cron from "node-cron";
+import cronTask from "./Core/Lib/cron";
 
 const server = express();
 const port = process.env.PORT || 8080;
 
 AppDataSource.initialize().then(async () => {
   console.log("db are connected");
+
+  cron.schedule("*/10 * * * *", () => {
+    cronTask();
+  });
 
   server.use(
     cors({
